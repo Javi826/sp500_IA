@@ -1,4 +1,8 @@
 #MODULE SUMMARY STATS
+"""
+Created on Mon Jan  8 22:54:48 2024
+@author: javier
+"""
 
 from paths.paths import *
 from functions.def_functions import filter_data_by_date_range,df_plots,plots_histograms
@@ -6,7 +10,7 @@ import pandas as pd
 from columns.columns import *
 
 start_date = "1980-01-01"
-endin_date = "2020-12-31"
+endin_date = "2023-12-31"
 
 # Construct the file name based on start_date and endin_date
 file_df_data_clean = f"df_data_clean_{start_date}_{endin_date}.csv"
@@ -63,7 +67,7 @@ print("Volatilidad Anual:")
 print(volatility_annual)
 
 df_summary_stats = pd.DataFrame({
-    'Year': mean_close_annual.index,  # Asumiendo que 'mean_close_annual' contiene los años
+    'Year': mean_close_annual.index,  
     'Mean_Close_Annual': mean_close_annual.values,
     'Max_Close_Annual': max_close_annual.values,
     'Min_Close_Annual': min_close_annual.values,

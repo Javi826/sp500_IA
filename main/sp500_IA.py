@@ -1,4 +1,8 @@
 # MAIN
+"""
+Created on Mon Jan  8 22:54:48 2024
+@author: javier
+"""
 from modules.mod_init import *
 from modules.mod_dtset_clean import mod_dtset_clean
 from modules.mod_preprocessing import mod_preprocessing
@@ -8,14 +12,13 @@ from classe.multipleCV import MultipleTimeSeriesCV
 import pandas as pd
 
 
-print(f'START MAINs')
-
+print(f'START MAIN')
 
 # YAHOO Call
 symbol = "^GSPC"
 
 start_date = "1980-01-01"
-endin_date = "2020-12-31"
+endin_date = "2023-12-31"
 sp500_data = yf.download(symbol, start=start_date, end=endin_date)
 
 # SAVE yahoo file
@@ -32,5 +35,70 @@ df_data_clean = mod_dtset_clean(df_data,start_date,endin_date)
 filter_start_date = '2000-01-01'
 filter_endin_date = '2019-12-31'
 df_preprocessing = mod_preprocessing(df_data_clean,filter_start_date,filter_endin_date)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#k
 
 print(f'ENDIN MAIN')

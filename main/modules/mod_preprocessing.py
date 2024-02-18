@@ -1,41 +1,30 @@
 #MODULE_PREPROCESSING
-
+"""
+Created on Mon Jan  8 22:54:48 2024
+@author: javier
+"""
 from functions.def_functions import *
 from paths.paths import *
 
 def mod_preprocessing (df_data_clean,filter_start_date,filter_endin_date):
     print(f'START MODUL mod_preprocessing')
     df_clean_filter = filter_data_by_date_range(df_data_clean, filter_start_date, filter_endin_date)
+    selected_columns =['date','close','returns','direction','day_week','momentun','volatility','MA']
+    df_preprocessing = pd.DataFrame(df_clean_filter, columns=selected_columns)
+
+    df_preprocessing['direction'] = np.where(df_preprocessing['returns']>0, 1, 0) 
+    df_preprocessing['momentun'] = df_preprocessing['returns'].rolling(5).mean().shift(1)
+    df_preprocessing['volatility'] = df_preprocessing['returns'].rolling(20).std().shift(1)
+    df_preprocessing['MA'] = df_preprocessing['close'].rolling(200).mean().shift(1)
     
-    #PREPROCESSING
-    null_imputer = SimpleImputer(strategy="constant", fill_value=None)
+    lags = 5
     
-    raw_pipeline = make_pipeline(
-        null_imputer,
-        FunctionTransformer(),
-        StandardScaler()
-        #MinMaxScaler()
-    )
-    
-    log_pipeline = make_pipeline(
-        null_imputer,
-        FunctionTransformer(np.log),
-        StandardScaler()
-        #MinMaxScaler()    
-    )
-    
-    preprocessing = ColumnTransformer([
-            ("raw", raw_pipeline, ['var_day','adj_close','open','high','low','volume'])
-            #("log", log_pipeline, ['adj_close','open', 'high', 'low', 'volume'])
-        ],
-        remainder="passthrough")
-    
-    #X_preprocessing
-    X_preprocessing = preprocessing.fit_transform(df_clean_filter)
-      
-    # Create a DataFrame with the transformed data and column names and ordered
-    df_preprocessing = pd.DataFrame(X_preprocessing, columns=columns_preprocessing)
-    df_preprocessing = df_preprocessing[columns_preprocessing_order]
+    cols = []
+    for lag in range(1,lags+1):
+        col =f'lag_{lag}'
+        df_preprocessing[col] = df_preprocessing['returns'].shift(lag)
+        cols.append(col)
+    df_preprocessing.dropna(inplace=True)
     
     # Print the first rows of the DataFrame with the assigned column names
     df_preprocessing['date'] = pd.to_datetime(df_preprocessing['date'])
@@ -44,6 +33,7 @@ def mod_preprocessing (df_data_clean,filter_start_date,filter_endin_date):
     # SAVE Dataframe
     excel_file_path = os.path.join(path_base, folder_preprocessing, "df_preprocessing.xlsx")
     df_preprocessing.to_excel(excel_file_path, index=False)
+    df_preprocessing.info()
     
     print(f'ENDIN MODUL mod_preprocessing')
     print('\n')

@@ -33,10 +33,10 @@ def date_anio(df_data_clean):
     
     return df_data_clean
 
-def var_day(df_data_clean):
+def returns(df_data_clean):
 
     # Sort out var_day
-    df_data_clean['var_day'] = (df_data_clean['close'] - df_data_clean['close'].shift(1)) / df_data_clean['close'] * 100
+    df_data_clean['returns'] = (df_data_clean['close'] - df_data_clean['close'].shift(1)) / df_data_clean['close'] * 100
    
         
     return df_data_clean
@@ -56,14 +56,14 @@ def sort_columns(df_data_clean):
 
 def rounding_data(df_data_clean):
 
-    columns_to_round = ['open', 'high', 'low', 'close', 'adj_close','var_day']
+    columns_to_round = ['open', 'high', 'low', 'close', 'adj_close','returns']
     # format float
     df_data_clean[columns_to_round] = df_data_clean[columns_to_round].astype(float)
     df_data_clean['day_week'] = df_data_clean['day_week'].astype(int)
     #format rounding 
     for column in columns_to_round:
       if column in df_data_clean.columns:
-          df_data_clean[column] = df_data_clean[column].round(2)
+          df_data_clean[column] = df_data_clean[column].round(4)
             
     return df_data_clean
 

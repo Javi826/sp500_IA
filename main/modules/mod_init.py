@@ -12,7 +12,6 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from statsmodels.tsa.arima.model import ARIMA
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
