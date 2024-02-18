@@ -8,8 +8,8 @@ from classe.multipleCV import MultipleTimeSeriesCV
 import pandas as pd
 
 
-print(f'START MAIN')
-print(f'START MAIN')
+print(f'START MAINs')
+
 
 # YAHOO Call
 symbol = "^GSPC"
