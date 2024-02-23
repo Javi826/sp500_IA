@@ -9,16 +9,16 @@ from paths.paths import *
 def mod_preprocessing (df_data_clean,filter_start_date,filter_endin_date):
     print(f'START MODUL mod_preprocessing')
     df_clean_filter = filter_data_by_date_range(df_data_clean, filter_start_date, filter_endin_date)
-    selected_columns =['date','close','returns','direction','day_week','momentun','volatility','MA']
+    selected_columns =['date','close','returns','direction','momentun','volatility','MA','day_week']
     df_preprocessing = pd.DataFrame(df_clean_filter, columns=selected_columns)
-
+    
+    df_preprocessing['returns'] = np.log(df_data_clean['close'] / df_data_clean['close'].shift(1))  
     df_preprocessing['direction'] = np.where(df_preprocessing['returns']>0, 1, 0) 
     df_preprocessing['momentun'] = df_preprocessing['returns'].rolling(5).mean().shift(1)
     df_preprocessing['volatility'] = df_preprocessing['returns'].rolling(20).std().shift(1)
     df_preprocessing['MA'] = df_preprocessing['close'].rolling(200).mean().shift(1)
     
-    lags = 5
-    
+    lags = 5   
     cols = []
     for lag in range(1,lags+1):
         col =f'lag_{lag}'

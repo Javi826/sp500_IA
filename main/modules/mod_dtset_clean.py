@@ -18,7 +18,6 @@ def mod_dtset_clean(df_data,start_date,endin_date):
     df_data_clean = add_index_column(df_data_clean)
     df_data_clean = date_anio(df_data_clean)
     df_data_clean = day_week(df_data_clean)
-    df_data_clean = returns(df_data_clean)
     df_data_clean = sort_columns(df_data_clean)
     df_data_clean = rounding_data(df_data_clean)
         
