@@ -13,7 +13,7 @@ def day_week(df_data_clean):
     # ensuring date_column with date format
     df_data_clean[date_column] = pd.to_datetime(df_data_clean[date_column])
     # add column day_week + from label to number
-    df_data_clean['day_week'] = df_data_clean[date_column].dt.dayofweek + 1  
+    df_data_clean['day_week'] = df_data_clean[date_column].dt.dayofweek  
     
     return df_data_clean
 

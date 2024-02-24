@@ -5,13 +5,9 @@ Created on Mon Jan  8 22:54:48 2024
 """
 
 import yfinance as yf
-import warnings
-import time
 import pandas as pd
-import os
-import matplotlib.pyplot as plt
 from pathlib import Path
-import numpy as np
+
 
 from modules.mod_init import *
 from paths.paths import *
@@ -29,18 +25,16 @@ results_path = Path('results', 'lstm_embeddings')
 
 print(f'START MAIN')
 
-# YAHOO Call
+# YAHOO CALL + SAVE + READING file
+#------------------------------------------------------------------------------
 symbol = "^GSPC"
-
 start_date = "1980-01-01"
 endin_date = "2023-12-31"
 sp500_data = yf.download(symbol, start=start_date, end=endin_date)
-
-# SAVE + READING yahoo file
-#------------------------------------------------------------------------------
 sp500_data.to_csv(path_file_csv)
-#print(f"The data has been saved to: {path_file_csv}")
 df_data = pd.read_csv(path_file_csv, header=None, skiprows=1, names=columns_csv_yahoo)
+
+#print(f"The data has been saved to: {path_file_csv}")
 
 #CALL module Datacleaning
 #------------------------------------------------------------------------------
@@ -54,49 +48,53 @@ filter_start_date = '2000-01-01'
 filter_endin_date = '2019-12-31'
 df_preprocessing = mod_preprocessing(df_data_clean,filter_start_date,filter_endin_date)
 
-#X_train y_train X_test y_test
+#TRAINING & TEST DATA
 #------------------------------------------------------------------------------
 
 cutoff = '2017-12-31'
 
 train_data = df_preprocessing[df_preprocessing.date < cutoff].copy()
 tests_data = df_preprocessing[df_preprocessing.date > cutoff].copy()
-#print(train_data.head())
 
 window_size = 5
 n_features = 1
-
 n_day_weeks = train_data.day_week.nunique()
 lag_columns = df_preprocessing.columns[df_preprocessing.columns.str.startswith('lag')]
 
-#X_train & y_train
+#X_train y_train
 #------------------------------------------------------------------------------
+lag_sequences_tr = df_preprocessing[df_preprocessing.date < cutoff][lag_columns].values.reshape(-1, len(lag_columns), 1)
+day_week_data_tr = df_preprocessing[df_preprocessing.date < cutoff]['day_week'].values.reshape(-1, 1)
 
-X_train = df_preprocessing[df_preprocessing.date < cutoff][lag_columns].values.reshape(-1, len(lag_columns), 1)
+X_train = [lag_sequences_tr, day_week_data_tr]
 y_train = df_preprocessing[df_preprocessing.date < cutoff]['direction']
 
-X_tests = df_preprocessing[df_preprocessing.date >= cutoff][lag_columns].values.reshape(-1, len(lag_columns), 1)
+#X_tests & y_tests
+#------------------------------------------------------------------------------
+lag_sequences_ts = df_preprocessing[df_preprocessing.date >= cutoff][lag_columns].values.reshape(-1, len(lag_columns), 1)
+day_week_data_ts = df_preprocessing[df_preprocessing.date >= cutoff]['day_week'].values.reshape(-1, 1)
+
+X_tests = [lag_sequences_ts, day_week_data_ts]
 y_tests = df_preprocessing[df_preprocessing.date >= cutoff]['direction']
 
 
-#INPUT LAYERS
+#INPUTS LAYERS
 #------------------------------------------------------------------------------
 
 r_lags   = Input(shape=(window_size, n_features),name='r_lags')
-
 day_week = Input(shape=(1,),name='day_week')
+
+print("Shape de r_lags:", r_lags.shape)
+print("Shape de day_week:", day_week.shape)
 
 #LSTM LAYERS
 #------------------------------------------------------------------------------
 lstm1_units = 25
 lstm2_units = 10
 
-lstm1 = LSTM(units=lstm1_units, 
-             input_shape=(window_size, 
-                          n_features), 
-             name='LSTM1', 
+lstm1 = LSTM(units=lstm1_units,input_shape=(window_size,n_features), 
              dropout=.2,
-             return_sequences=True)(r_lags)
+             name='LSTM1',return_sequences=True)(r_lags) 
 
 lstm_model = LSTM(units=lstm2_units, 
              dropout=.2,
@@ -104,16 +102,12 @@ lstm_model = LSTM(units=lstm2_units,
 
 #EMBEDDINGS LAYER
 #------------------------------------------------------------------------------
-day_week_embedding = Embedding(input_dim=n_day_weeks, 
-                             output_dim=5, 
-                             input_length=1)(day_week)
+day_week_embedding = Embedding(input_dim=n_day_weeks,output_dim=5,input_length=1)(day_week)
 day_week_embedding = Reshape(target_shape=(5,))(day_week_embedding)
-
 
 #CONCATENATE MODEL COMPONENTS
 #------------------------------------------------------------------------------
-merged = concatenate([lstm_model, 
-                      day_week_embedding], name='Merged')
+merged = concatenate([lstm_model,day_week_embedding], name='Merged')
                       
 bn = BatchNormalization()(merged)
 hidden_dense = Dense(10, name='FC1')(bn)
@@ -123,15 +117,13 @@ output = Dense(1, name='Output', activation='sigmoid')(hidden_dense)
 rnn = Model(inputs=[r_lags, day_week], outputs=output)
 rnn.summary()
 
-
 #TRAIN MODEL
 #------------------------------------------------------------------------------
 optimizer = tf.keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-08)
 
-rnn.compile(loss='binary_crossentropy',
-            optimizer=optimizer,
-            metrics=['accuracy', 
-                     tf.keras.metrics.AUC(name='AUC')])
+rnn.compile(loss='binary_crossentropy',optimizer=optimizer,
+            metrics=['accuracy',tf.keras.metrics.AUC(name='AUC')])
+
 
 lstm_path = (results_path / 'lstm.classification.h5').as_posix()
 
