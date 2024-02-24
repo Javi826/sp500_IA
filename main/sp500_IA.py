@@ -3,17 +3,28 @@
 Created on Mon Jan  8 22:54:48 2024
 @author: javier
 """
+
+import yfinance as yf
+import warnings
+import time
+import pandas as pd
+import os
+import matplotlib.pyplot as plt
+from pathlib import Path
+import numpy as np
+
 from modules.mod_init import *
+from paths.paths import *
+from columns.columns import columns_csv_yahoo,columns_clean_order
 from modules.mod_dtset_clean import mod_dtset_clean
 from modules.mod_preprocessing import mod_preprocessing
-from paths.paths import *
-from columns.columns import *
+
+import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, LSTM, Input, concatenate, Embedding, Reshape, BatchNormalization
-import pandas as pd
 
-from pathlib import Path
+
 results_path = Path('results', 'lstm_embeddings')
 
 print(f'START MAIN')
@@ -25,22 +36,26 @@ start_date = "1980-01-01"
 endin_date = "2023-12-31"
 sp500_data = yf.download(symbol, start=start_date, end=endin_date)
 
-# SAVE yahoo file
+# SAVE + READING yahoo file
+#------------------------------------------------------------------------------
 sp500_data.to_csv(path_file_csv)
 #print(f"The data has been saved to: {path_file_csv}")
-
-#READING yahoo file
 df_data = pd.read_csv(path_file_csv, header=None, skiprows=1, names=columns_csv_yahoo)
 
 #CALL module Datacleaning
+#------------------------------------------------------------------------------
+
 df_data_clean = mod_dtset_clean(df_data,start_date,endin_date)
 
 #CALL module Preprocessing-Range
+#------------------------------------------------------------------------------
+
 filter_start_date = '2000-01-01'
 filter_endin_date = '2019-12-31'
 df_preprocessing = mod_preprocessing(df_data_clean,filter_start_date,filter_endin_date)
 
 #X_train y_train X_test y_test
+#------------------------------------------------------------------------------
 
 cutoff = '2017-12-31'
 
@@ -56,24 +71,20 @@ lag_columns = df_preprocessing.columns[df_preprocessing.columns.str.startswith('
 
 #X_train & y_train
 #------------------------------------------------------------------------------
+
 X_train = df_preprocessing[df_preprocessing.date < cutoff][lag_columns].values.reshape(-1, len(lag_columns), 1)
 y_train = df_preprocessing[df_preprocessing.date < cutoff]['direction']
 
-X_test = df_preprocessing[df_preprocessing.date >= cutoff][lag_columns].values.reshape(-1, len(lag_columns), 1)
-y_test = df_preprocessing[df_preprocessing.date >= cutoff]['direction']
+X_tests = df_preprocessing[df_preprocessing.date >= cutoff][lag_columns].values.reshape(-1, len(lag_columns), 1)
+y_tests = df_preprocessing[df_preprocessing.date >= cutoff]['direction']
 
-#------------------------------------------------------------------------------
 
 #INPUT LAYERS
 #------------------------------------------------------------------------------
 
-r_lags = Input(shape=(window_size, n_features),
-                name='r_lags')
+r_lags   = Input(shape=(window_size, n_features),name='r_lags')
 
-day_week = Input(shape=(1,),
-                name='day_week')
-
-#------------------------------------------------------------------------------
+day_week = Input(shape=(1,),name='day_week')
 
 #LSTM LAYERS
 #------------------------------------------------------------------------------
@@ -112,6 +123,7 @@ output = Dense(1, name='Output', activation='sigmoid')(hidden_dense)
 rnn = Model(inputs=[r_lags, day_week], outputs=output)
 rnn.summary()
 
+
 #TRAIN MODEL
 #------------------------------------------------------------------------------
 optimizer = tf.keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-08)
@@ -138,7 +150,7 @@ training = rnn.fit(X_train,
                    y_train,
                    epochs=50,
                    batch_size=32,
-                   validation_data=(X_test, y_test),
+                   validation_data=(X_tests, y_tests),
                    callbacks=[early_stopping, checkpointer],
                    verbose=1)
 

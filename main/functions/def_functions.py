@@ -1,8 +1,10 @@
 #FUNTCIONS
 
-from modules.mod_init import *
-from columns.columns import *
 
+from columns.columns import *
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
 def day_week(df_data_clean):
        
