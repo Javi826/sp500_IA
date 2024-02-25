@@ -119,7 +119,7 @@ rnn.summary()
 
 #TRAIN MODEL
 #------------------------------------------------------------------------------
-optimizer = tf.keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=1e-08)
+optimizer = tf.keras.optimizers.RMSprop(learning_rate=0.1, rho=0.9, epsilon=1e-08)
 
 rnn.compile(loss='binary_crossentropy',optimizer=optimizer,
             metrics=['accuracy',tf.keras.metrics.AUC(name='AUC')])
@@ -134,14 +134,14 @@ checkpointer = ModelCheckpoint(filepath=lstm_path,
                                save_best_only=True)
 
 early_stopping = EarlyStopping(monitor='val_AUC', 
-                              patience=5,
+                              patience=10,
                               restore_best_weights=True,
                               mode='max')
 
 training = rnn.fit(X_train,
                    y_train,
-                   epochs=50,
-                   batch_size=32,
+                   epochs=250,
+                   batch_size=2024,
                    validation_data=(X_tests, y_tests),
                    callbacks=[early_stopping, checkpointer],
                    verbose=1)
