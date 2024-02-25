@@ -1,5 +1,9 @@
 #FUNTCIONS
 
+"""
+Created on Mon Nov  8 22:54:48 2023
+@author: javier
+"""
 
 from columns.columns import *
 import pandas as pd
