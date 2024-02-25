@@ -23,7 +23,7 @@ path_summary_stats = os.path.join(path_base, folder_summary_stats, file_summary_
 
 file_preprocessing = 'df_preprocessing.xlsx'
 folder_preprocessing = "inputs/preprocessing"
-path_preprocessing = os.path.join(path_base, folder_preprocessing, file_preprocessing)
+#path_preprocessing = os.path.join(path_base, folder_preprocessing, file_preprocessing)
 
 
 

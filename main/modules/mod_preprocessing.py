@@ -4,7 +4,7 @@ Created on Mon Nov  8 22:54:48 2023
 @author: javier
 """
 from functions.def_functions import *
-from paths.paths import *
+from paths.paths import path_base,folder_preprocessing
 
 def mod_preprocessing (df_data_clean,filter_start_date,filter_endin_date):
     print(f'START MODUL mod_preprocessing')

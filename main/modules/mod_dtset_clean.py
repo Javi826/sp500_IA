@@ -4,7 +4,7 @@ Created on Mon Nov  8 22:54:48 2023
 @author: javier
 """
 from functions.def_functions import *
-from paths.paths import *
+from paths.paths import path_base,folder_df_data_clean,file_df_data_clean
 
 def mod_dtset_clean(df_data,start_date,endin_date):
     print('\n')

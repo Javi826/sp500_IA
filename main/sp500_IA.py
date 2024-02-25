@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 from modules.mod_init import *
-from paths.paths import *
+from paths.paths import file_df_data,folder_csv,path_file_csv
 from columns.columns import columns_csv_yahoo,columns_clean_order
 from modules.mod_dtset_clean import mod_dtset_clean
 from modules.mod_preprocessing import mod_preprocessing
@@ -141,7 +141,7 @@ early_stopping = EarlyStopping(monitor='val_AUC',
 training = rnn.fit(X_train,
                    y_train,
                    epochs=250,
-                   batch_size=2024,
+                   batch_size=24,
                    validation_data=(X_tests, y_tests),
                    callbacks=[early_stopping, checkpointer],
                    verbose=1)
