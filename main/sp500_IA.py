@@ -15,10 +15,15 @@ from columns.columns import columns_csv_yahoo,columns_clean_order
 from modules.mod_dtset_clean import mod_dtset_clean
 from modules.mod_preprocessing import mod_preprocessing
 
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.stats import spearmanr
+
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, LSTM, Input, concatenate, Embedding, Reshape, BatchNormalization
+from sklearn.metrics import confusion_matrix, classification_report,roc_auc_score
 
 
 results_path = Path('results', 'lstm_embeddings')
@@ -115,7 +120,7 @@ hidden_dense = Dense(10, name='FC1')(bn)
 output = Dense(1, name='Output', activation='sigmoid')(hidden_dense)
 
 rnn = Model(inputs=[r_lags, day_week], outputs=output)
-rnn.summary()
+#rnn.summary()
 
 #TRAIN MODEL
 #------------------------------------------------------------------------------
@@ -145,5 +150,63 @@ training = rnn.fit(X_train,
                    validation_data=(X_tests, y_tests),
                    callbacks=[early_stopping, checkpointer],
                    verbose=1)
+
+#PLOT TRAINING
+#------------------------------------------------------------------------------
+loss_history = pd.DataFrame(training.history)
+def which_metric(m):
+    return m.split('_')[-1]
+fig, axes = plt.subplots(ncols=3, figsize=(18,4))
+for i, (metric, hist) in enumerate(loss_history.groupby(which_metric, axis=1)):
+    hist.plot(ax=axes[i], title=metric)
+    axes[i].legend(['Training', 'Validation'])
+
+sns.despine()
+fig.tight_layout()
+fig.savefig(results_path / 'lstm_stacked_classification', dpi=300);
+
+#PREDICTIONS
+#------------------------------------------------------------------------------
+evaluation = rnn.evaluate(X_tests, y_tests)
+print("Evaluation Loss:", evaluation[0])
+print("Evaluation Accuracy:", evaluation[1])
+print("Evaluation AUC:", evaluation[2])
+
+predictions = rnn.predict(X_tests)
+#print(predictions)
+predicted_labels = (predictions > 0.5).astype(int)
+#print(predicted_labels)
+
+from sklearn.metrics import confusion_matrix, classification_report
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Matrix
+conf_matrix = confusion_matrix(y_tests, predicted_labels)
+
+# Matrix Visualization
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=['0', '1'], yticklabels=['0', '1'])
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix')
+plt.show()
+
+class_report = classification_report(y_tests, predicted_labels)
+print("Classification Report:\n", class_report)
+
+#SAVE Dataframe results
+#------------------------------------------------------------------------------
+# Crear un DataFrame con las columnas deseadas
+df_results = pd.DataFrame(columns=['date', 'y_tests', 'y_predicted'])
+
+# Asignar las fechas al DataFrame
+df_results['date'] = df_preprocessing['date']
+
+# Asignar las etiquetas reales y predichas
+df_results['y_tests'] = y_tests.tolist()
+df_results['y_predicted'] = predicted_labels.tolist()
+
+# Guardar el DataFrame en un archivo Excel
+df_results.to_excel('results_dataframe.xlsx', index=False)
 
 print(f'ENDIN MAIN')
