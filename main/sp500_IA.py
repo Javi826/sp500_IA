@@ -86,6 +86,12 @@ y_tests = df_preprocessing[df_preprocessing.date >= cutoff]['direction']
 
 num_records_y_tests = len(y_tests)
 
+df_y_tests = pd.DataFrame({'y_tests': y_tests})
+df_y_tests.index.name = 'index'
+
+# Guardar el DataFrame en un archivo CSV, Excel, o el formato que desees
+df_y_tests.to_excel('y_tests_dataframe.xlsx', index=True)
+
 print(f'Número de registros en y_tests: {num_records_y_tests}')
 
 
@@ -184,11 +190,11 @@ predicted_labels = (predictions > 0.5).astype(int)
 #print(predicted_labels)
 
 # Crear un DataFrame con las predicciones y los valores reales
-df_results = pd.DataFrame({'Actual': y_tests, 'Predicted': predicted_labels})
-#df_results['Date'] = 
+df_results = pd.DataFrame({'y_tests': y_tests, 'Predicted': predicted_labels})
 
-df_results.to_excel('Actual vs Predicted.xlsx')#, index=False)
-print("Saved Actual vs Predicted.xlsx")
+
+df_results.to_excel('y_tests vs Predicted.xlsx')#, index=False)
+print("Saved y_tests vs Predicted.xlsx")
 
 # Matrix
 conf_matrix = confusion_matrix(y_tests, predicted_labels)
