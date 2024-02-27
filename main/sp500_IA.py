@@ -50,7 +50,7 @@ df_data_clean = mod_dtset_clean(df_data,start_date,endin_date)
 #------------------------------------------------------------------------------
 
 filter_start_date = '2000-01-01'
-filter_endin_date = '2019-12-31'
+filter_endin_date = '2018-12-31'
 df_preprocessing = mod_preprocessing(df_data_clean,filter_start_date,filter_endin_date)
 
 #TRAINING & TEST DATA
@@ -60,6 +60,8 @@ cutoff = '2017-12-31'
 
 train_data = df_preprocessing[df_preprocessing.date < cutoff].copy()
 tests_data = df_preprocessing[df_preprocessing.date > cutoff].copy()
+
+print(tests_data)
 
 window_size = 5
 n_features = 1
@@ -81,6 +83,10 @@ day_week_data_ts = df_preprocessing[df_preprocessing.date >= cutoff]['day_week']
 
 X_tests = [lag_sequences_ts, day_week_data_ts]
 y_tests = df_preprocessing[df_preprocessing.date >= cutoff]['direction']
+
+num_records_y_tests = len(y_tests)
+
+print(f'Número de registros en y_tests: {num_records_y_tests}')
 
 
 #INPUTS LAYERS
@@ -124,7 +130,7 @@ rnn = Model(inputs=[r_lags, day_week], outputs=output)
 
 #TRAIN MODEL
 #------------------------------------------------------------------------------
-optimizer = tf.keras.optimizers.RMSprop(learning_rate=0.1, rho=0.9, epsilon=1e-08)
+optimizer = tf.keras.optimizers.RMSprop(learning_rate=0.001, rho=0.9, epsilon=1e-08)
 
 rnn.compile(loss='binary_crossentropy',optimizer=optimizer,
             metrics=['accuracy',tf.keras.metrics.AUC(name='AUC')])
@@ -172,14 +178,17 @@ print("Evaluation Loss:", evaluation[0])
 print("Evaluation Accuracy:", evaluation[1])
 print("Evaluation AUC:", evaluation[2])
 
-predictions = rnn.predict(X_tests)
+predictions = rnn.predict(X_tests).squeeze()
 #print(predictions)
 predicted_labels = (predictions > 0.5).astype(int)
 #print(predicted_labels)
 
-from sklearn.metrics import confusion_matrix, classification_report
-import seaborn as sns
-import matplotlib.pyplot as plt
+# Crear un DataFrame con las predicciones y los valores reales
+df_results = pd.DataFrame({'Actual': y_tests, 'Predicted': predicted_labels})
+#df_results['Date'] = 
+
+df_results.to_excel('Actual vs Predicted.xlsx')#, index=False)
+print("Saved Actual vs Predicted.xlsx")
 
 # Matrix
 conf_matrix = confusion_matrix(y_tests, predicted_labels)
@@ -194,19 +203,6 @@ plt.show()
 class_report = classification_report(y_tests, predicted_labels)
 print("Classification Report:\n", class_report)
 
-#SAVE Dataframe results
-#------------------------------------------------------------------------------
-# Crear un DataFrame con las columnas deseadas
-df_results = pd.DataFrame(columns=['date', 'y_tests', 'y_predicted'])
 
-# Asignar las fechas al DataFrame
-df_results['date'] = df_preprocessing['date']
-
-# Asignar las etiquetas reales y predichas
-df_results['y_tests'] = y_tests.tolist()
-df_results['y_predicted'] = predicted_labels.tolist()
-
-# Guardar el DataFrame en un archivo Excel
-df_results.to_excel('results_dataframe.xlsx', index=False)
 
 print(f'ENDIN MAIN')
