@@ -20,8 +20,9 @@ import matplotlib.pyplot as plt
 from scipy.stats import spearmanr
 
 import tensorflow as tf
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from tensorflow.keras.models import Model
+from sklearn.preprocessing import FunctionTransformer, StandardScaler,MinMaxScaler
 from tensorflow.keras.layers import Dense, LSTM, Input, concatenate, Embedding, Reshape, BatchNormalization
 from sklearn.metrics import confusion_matrix, classification_report,roc_auc_score
 
@@ -46,13 +47,23 @@ df_data = pd.read_csv(path_file_csv, header=None, skiprows=1, names=columns_csv_
 
 df_data_clean = mod_dtset_clean(df_data,start_date,endin_date)
 
-#CALL module Preprocessing-Range
+#CALL PREPROCESSING
 #------------------------------------------------------------------------------
 
 filter_start_date = '2000-01-01'
 filter_endin_date = '2018-12-31'
 df_preprocessing = mod_preprocessing(df_data_clean,filter_start_date,filter_endin_date)
-df_preprocessing.info()
+#df_preprocessing.info()
+
+#DATA NORMALIZATION
+#------------------------------------------------------------------------------
+scaler = StandardScaler()
+norm_columns = df_preprocessing.columns[df_preprocessing.columns.str.startswith('lag')]
+df_preprocessing[norm_columns] = scaler.fit_transform(df_preprocessing[norm_columns])
+df_preprocessing[norm_columns] = scaler.transform(df_preprocessing[norm_columns])
+
+print(df_preprocessing)
+
 #TRAINING & TEST DATA
 #------------------------------------------------------------------------------
 
@@ -69,68 +80,51 @@ lag_columns = df_preprocessing.columns[df_preprocessing.columns.str.startswith('
 #X_train y_train
 #------------------------------------------------------------------------------
 lag_sequences_tr = df_preprocessing[df_preprocessing.date < cutoff][lag_columns].values.reshape(-1, len(lag_columns), 1)
-day_week_data_tr = df_preprocessing[df_preprocessing.date < cutoff]['day_week'].values.reshape(-1, 1)
 
-X_train = [lag_sequences_tr, day_week_data_tr]
+X_train = [lag_sequences_tr]
 y_train = df_preprocessing[df_preprocessing.date < cutoff]['direction']
 
 #X_tests & y_tests
 #------------------------------------------------------------------------------
 lag_sequences_ts = df_preprocessing[df_preprocessing.date >= cutoff][lag_columns].values.reshape(-1, len(lag_columns), 1)
-day_week_data_ts = df_preprocessing[df_preprocessing.date >= cutoff]['day_week'].values.reshape(-1, 1)
 
-X_tests = [lag_sequences_ts, day_week_data_ts]
+X_tests = [lag_sequences_ts]
 y_tests = df_preprocessing[df_preprocessing.date >= cutoff]['direction']
 
-#df_y_tests = pd.DataFrame({'y_tests': y_tests})
-#df_y_tests.index.name = 'index'
-
-# Guardar el DataFrame en un archivo CSV, Excel, o el formato que desees
-#df_y_tests.to_excel('y_tests_dataframe.xlsx', index=True)
-
-#INPUTS LAYERS
+#INPUTS
 #------------------------------------------------------------------------------
 
-r_lags   = Input(shape=(window_size, n_features),name='r_lags')
-day_week = Input(shape=(1,),name='day_week')
-
+r_lags = Input(shape=(window_size, n_features),name='r_lags')
 print("Shape de r_lags:", r_lags.shape)
-print("Shape de day_week:", day_week.shape)
 
 #LSTM LAYERS
 #------------------------------------------------------------------------------
 lstm1_units = 25
 lstm2_units = 10
 
-lstm1 = LSTM(units=lstm1_units,input_shape=(window_size,n_features), 
-             dropout=.2,
+lstm1 = LSTM(units=lstm1_units,input_shape=(window_size,n_features),dropout=0.2,
              name='LSTM1',return_sequences=True)(r_lags) 
 
-lstm_model = LSTM(units=lstm2_units, 
-             dropout=.2,
-             name='LSTM2')(lstm1)
+lstm_model = LSTM(units=lstm2_units,dropout=0.2,name='LSTM2')(lstm1)
 
-#EMBEDDINGS LAYER
+# DENSE LAYER
 #------------------------------------------------------------------------------
-day_week_embedding = Embedding(input_dim=n_day_weeks,output_dim=5,input_length=1)(day_week)
-day_week_embedding = Reshape(target_shape=(5,))(day_week_embedding)
-
-#CONCATENATE MODEL COMPONENTS
-#------------------------------------------------------------------------------
-merged = concatenate([lstm_model,day_week_embedding], name='Merged')
-                   
-bn = BatchNormalization()(merged)
-
+bn = BatchNormalization()(lstm_model)
 hidden_dense = Dense(10, name='FC1')(bn)
 
+# OUTPUT LAYER
+#------------------------------------------------------------------------------
 output = Dense(1, name='Output', activation='sigmoid')(hidden_dense)
 
-rnn = Model(inputs=[r_lags, day_week], outputs=output)
+# MODEL DEFINITION
+#------------------------------------------------------------------------------
+rnn = Model(inputs=[r_lags], outputs=output)
 rnn.summary()
 
 #TRAIN MODEL
 #------------------------------------------------------------------------------
 optimizer = tf.keras.optimizers.RMSprop(learning_rate=0.001, rho=0.9, epsilon=1e-08)
+tensorboard_callback = TensorBoard(log_dir='logs', histogram_freq=1, write_grads=True)
 
 rnn.compile(loss='binary_crossentropy',optimizer=optimizer,
             metrics=['accuracy',tf.keras.metrics.AUC(name='AUC')])
@@ -151,25 +145,11 @@ early_stopping = EarlyStopping(monitor='val_AUC',
 
 training = rnn.fit(X_train,
                    y_train,
-                   epochs=250,
-                   batch_size=24,
+                   epochs=24,
+                   batch_size=32,
                    validation_data=(X_tests, y_tests),
-                   callbacks=[early_stopping, checkpointer],
+                   callbacks=[early_stopping, checkpointer, tensorboard_callback],
                    verbose=1)
-
-#PLOT TRAINING
-#------------------------------------------------------------------------------
-loss_history = pd.DataFrame(training.history)
-def which_metric(m):
-    return m.split('_')[-1]
-fig, axes = plt.subplots(ncols=3, figsize=(18,4))
-for i, (metric, hist) in enumerate(loss_history.groupby(which_metric, axis=1)):
-    hist.plot(ax=axes[i], title=metric)
-    axes[i].legend(['Training', 'Validation'])
-
-sns.despine()
-fig.tight_layout()
-fig.savefig(results_path / 'lstm_stacked_classification', dpi=300);
 
 #PREDICTIONS
 #------------------------------------------------------------------------------
@@ -179,28 +159,14 @@ print("Evaluation Accuracy:", evaluation[1])
 print("Evaluation AUC:", evaluation[2])
 
 predictions = rnn.predict(X_tests).squeeze()
-#print(predictions)
+print(predictions)
 predicted_labels = (predictions > 0.5).astype(int)
 #print(predicted_labels)
 
 # Crear un DataFrame con las predicciones y los valores reales
 df_results = pd.DataFrame({'y_tests': y_tests, 'Predicted': predicted_labels})
 
-
 df_results.to_excel('y_tests vs Predicted.xlsx')#, index=False)
 print("Saved y_tests vs Predicted.xlsx")
-
-# Matrix
-conf_matrix = confusion_matrix(y_tests, predicted_labels)
-
-# Matrix Visualization
-sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=['0', '1'], yticklabels=['0', '1'])
-plt.xlabel('Predicted')
-plt.ylabel('y_tests')
-plt.title('Confusion Matrix')
-plt.show()
-
-class_report = classification_report(y_tests, predicted_labels)
-print("Classification Report:\n", class_report)
 
 print(f'ENDIN MAIN')

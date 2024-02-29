@@ -18,7 +18,7 @@ def mod_preprocessing (df_data_clean,filter_start_date,filter_endin_date):
     df_preprocessing['volatility'] = df_preprocessing['returns'].rolling(20).std().shift(1)
     df_preprocessing['MA'] = df_preprocessing['close'].rolling(200).mean().shift(1)
     
-    lags = 5   
+    lags = 5  
     cols = []
     for lag in range(1,lags+1):
         col =f'lag_{lag}'
@@ -33,7 +33,6 @@ def mod_preprocessing (df_data_clean,filter_start_date,filter_endin_date):
     # SAVE Dataframe
     excel_file_path = os.path.join(path_base, folder_preprocessing, "df_preprocessing.xlsx")
     df_preprocessing.to_excel(excel_file_path, index=False)
-    df_preprocessing.info()
     
     print(f'ENDIN MODUL mod_preprocessing')
     print('\n')
