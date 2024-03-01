@@ -14,6 +14,7 @@ from paths.paths import file_df_data,folder_csv,path_file_csv
 from columns.columns import columns_csv_yahoo,columns_clean_order
 from modules.mod_dtset_clean import mod_dtset_clean
 from modules.mod_preprocessing import mod_preprocessing
+from functions.def_functions import class_weight
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -22,8 +23,10 @@ from scipy.stats import spearmanr
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from tensorflow.keras.models import Model
-from sklearn.preprocessing import FunctionTransformer, StandardScaler,MinMaxScaler
 from tensorflow.keras.layers import Dense, LSTM, Input, concatenate, Embedding, Reshape, BatchNormalization
+from tensorflow.keras.optimizers import Adam
+from sklearn.preprocessing import FunctionTransformer, StandardScaler,MinMaxScaler
+
 from sklearn.metrics import confusion_matrix, classification_report,roc_auc_score
 
 
@@ -54,14 +57,14 @@ filter_start_date = '2000-01-01'
 filter_endin_date = '2018-12-31'
 df_preprocessing = mod_preprocessing(df_data_clean,filter_start_date,filter_endin_date)
 #df_preprocessing.info()
+weights = class_weight(df_preprocessing)
 
 #DATA NORMALIZATION
 #------------------------------------------------------------------------------
 scaler = StandardScaler()
-norm_columns = df_preprocessing.columns[df_preprocessing.columns.str.startswith('lag')]
-df_preprocessing[norm_columns] = scaler.fit_transform(df_preprocessing[norm_columns])
+lag_columns = df_preprocessing.columns[df_preprocessing.columns.str.startswith('lag')]
+df_preprocessing[lag_columns] = scaler.fit_transform(df_preprocessing[lag_columns])
 
-print(df_preprocessing)
 
 #TRAINING & TEST DATA
 #------------------------------------------------------------------------------
@@ -90,26 +93,32 @@ lag_sequences_ts = df_preprocessing[df_preprocessing.date >= cutoff][lag_columns
 X_tests = [lag_sequences_ts]
 y_tests = df_preprocessing[df_preprocessing.date >= cutoff]['direction']
 
-#INPUTS
+
+#SET SEEDS
 #------------------------------------------------------------------------------
 
-r_lags = Input(shape=(window_size, n_features),name='r_lags')
-print("Shape de r_lags:", r_lags.shape)
+def set_seeds(seed=100):
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
 
-#LSTM LAYERS
+#OPTIMIZER
 #------------------------------------------------------------------------------
-lstm1_units = 25
-lstm2_units = 10
+optimizer = keras.optimizers.legacy.Adam(learning_rate=0.001)  
 
-lstm1 = LSTM(units=lstm1_units,input_shape=(window_size,n_features),dropout=0.2,
-             name='LSTM1',return_sequences=True)(r_lags) 
-
-lstm_model = LSTM(units=lstm2_units,dropout=0.2,name='LSTM2')(lstm1)
-
-# DENSE LAYER
+#CREATE MODEL
 #------------------------------------------------------------------------------
-bn = BatchNormalization()(lstm_model)
-hidden_dense = Dense(10, name='FC1')(bn)
+def create_model(hl=1, hu=128, optimizer=optimizer):
+    model = Sequential()
+    model.add(Dense(hu, input_dim=len(cols),
+                    activation='relu'))
+    for _ in range(hl):
+        model.add(Dense(hu, activation='relu'))
+    model.add(Dense(1, activation='sigmoid'))
+    model.compile(loss='binary_crossentropy',
+                  optimizer=optimizer,
+                  metrics=['accuracy'])
+    return model
 
 # OUTPUT LAYER
 #------------------------------------------------------------------------------
@@ -122,7 +131,7 @@ rnn.summary()
 
 #TRAIN MODEL
 #------------------------------------------------------------------------------
-optimizer = tf.keras.optimizers.RMSprop(learning_rate=0.001, rho=0.9, epsilon=1e-08)
+optimizer = Adam(lr=0.001)
 tensorboard_callback = TensorBoard(log_dir='logs', histogram_freq=1, write_grads=True)
 
 rnn.compile(loss='binary_crossentropy',optimizer=optimizer,
@@ -132,7 +141,7 @@ rnn.compile(loss='binary_crossentropy',optimizer=optimizer,
 lstm_path = (results_path / 'lstm.classification.h5').as_posix()
 
 checkpointer = ModelCheckpoint(filepath=lstm_path,
-                               verbose=1,
+                               verbose=False,
                                monitor='val_AUC',
                                mode='max',
                                save_best_only=True)
@@ -144,11 +153,11 @@ early_stopping = EarlyStopping(monitor='val_AUC',
 
 training = rnn.fit(X_train,
                    y_train,
-                   epochs=24,
+                   epochs=25,
                    batch_size=32,
                    validation_data=(X_tests, y_tests),
                    callbacks=[early_stopping, checkpointer, tensorboard_callback],
-                   verbose=1)
+                   verbose=False)
 
 #PREDICTIONS
 #------------------------------------------------------------------------------
@@ -158,7 +167,7 @@ print("Evaluation Accuracy:", evaluation[1])
 print("Evaluation AUC:", evaluation[2])
 
 predictions = rnn.predict(X_tests).squeeze()
-print(predictions)
+#print(predictions)
 predicted_labels = (predictions > 0.5).astype(int)
 #print(predicted_labels)
 

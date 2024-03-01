@@ -70,6 +70,13 @@ def filter_data_by_date_range(df, filter_start_date, filter_endin_date):
         
     return df[(df['date'] >= filter_start_date) & (df['date'] <= filter_endin_date)]
 
+def class_weight(df_preprocessing):
+    
+    c0, c1 = np.bincount(df_preprocessing['direction'])
+    w0 = (1/c0) * (len(df_preprocessing)) / 2
+    w1 = (1/c1) * (len(df_preprocessing)) / 2
+    return {0: w0, 1:w1}
+
 
 def df_plots(x, y, x_label, y_label,plot_style):
     
