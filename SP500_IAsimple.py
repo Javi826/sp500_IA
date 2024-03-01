@@ -60,7 +60,6 @@ df_preprocessing = mod_preprocessing(df_data_clean,filter_start_date,filter_endi
 scaler = StandardScaler()
 norm_columns = df_preprocessing.columns[df_preprocessing.columns.str.startswith('lag')]
 df_preprocessing[norm_columns] = scaler.fit_transform(df_preprocessing[norm_columns])
-df_preprocessing[norm_columns] = scaler.transform(df_preprocessing[norm_columns])
 
 print(df_preprocessing)
 
