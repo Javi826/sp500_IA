@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Mar  1 23:33:28 2024
-
 @author: javi
 """
 
