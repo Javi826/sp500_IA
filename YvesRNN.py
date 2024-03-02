@@ -11,8 +11,15 @@ import random
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+
 from pprint import pprint
 from pylab import plt, mpl
+
+from keras.preprocessing.sequence import TimeseriesGenerator
+from keras.models import Sequential
+from keras.layers import SimpleRNN, LSTM, Dense,Dropout
+from sklearn.metrics import accuracy_score
+
 plt.style.use('seaborn-v0_8')
 mpl.rcParams['savefig.dpi'] = 300
 mpl.rcParams['font.family'] = 'serif'
@@ -25,109 +32,6 @@ def set_seeds(seed=100):
     np.random.seed(seed)
     tf.random.set_seed(seed)
 set_seeds()
-
-a = np.arange(100)
-
-a = a.reshape((len(a), -1))
-
-a.shape
-
-a[:5]
-
-from keras.preprocessing.sequence import TimeseriesGenerator
-
-lags = 3
-
-g = TimeseriesGenerator(a, a, length=lags, batch_size=5)
-
-pprint(list(g)[0])
-
-from keras.models import Sequential
-from keras.layers import SimpleRNN, LSTM, Dense
-
-model = Sequential()
-model.add(SimpleRNN(100, activation='relu',
-                    input_shape=(lags, 1)))
-model.add(Dense(1, activation='linear'))
-model.compile(optimizer='adagrad', loss='mse',
-              metrics=['mae'])
-
-model.summary()
-
-model.fit(g, epochs=1000, steps_per_epoch=5,
-            verbose=False)
-
-res = pd.DataFrame(model.history.history)
-
-res.tail(3)
-
-res.iloc[10:].plot(figsize=(10, 6), style=['--', '--']);
-
-x = np.array([21, 22, 23]).reshape((1, lags, 1))
-y = model.predict(x, verbose=False)
-int(round(y[0, 0]))
-
-x = np.array([87, 88, 89]).reshape((1, lags, 1))
-y = model.predict(x, verbose=False)
-int(round(y[0, 0]))
-
-x = np.array([187, 188, 189]).reshape((1, lags, 1))
-y = model.predict(x, verbose=False)
-int(round(y[0, 0]))
-
-x = np.array([1187, 1188, 1189]).reshape((1, lags, 1))
-y = model.predict(x, verbose=False)
-int(round(y[0, 0]))
-
-def transform(x):
-    y = 0.05 * x ** 2 + 0.2 * x + np.sin(x) + 5
-    y += np.random.standard_normal(len(x)) * 0.2
-    return y
-
-x = np.linspace(-2 * np.pi, 2 * np.pi, 500)
-a = transform(x)
-
-plt.figure(figsize=(10, 6))
-plt.plot(x, a);
-
-a = a.reshape((len(a), -1))
-
-a[:5]
-
-lags = 5
-
-g = TimeseriesGenerator(a, a, length=lags, batch_size=5)
-
-model = Sequential()
-model.add(SimpleRNN(500, activation='relu', input_shape=(lags, 1)))
-model.add(Dense(1, activation='linear'))
-model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
-model = Sequential()
-model.add(SimpleRNN(500, activation='relu', input_shape=(lags, 1)))
-model.add(Dense(1, activation='linear'))
-model.compile(optimizer='rmsprop', loss='mse', metrics=['mae'])
-
-model.fit(g, epochs=500,
-          steps_per_epoch=10,
-          verbose=False)
-
-x = np.linspace(-6 * np.pi, 6 * np.pi, 1000)
-d = transform(x)    
-
-g_ = TimeseriesGenerator(d, d, length=lags, batch_size=len(d))  
-
-f = list(g_)[0][0].reshape((len(d) - lags, lags, 1))
-y = model.predict(f, verbose=False)
-
-plt.figure(figsize=(10, 6))
-plt.plot(x[lags:], d[lags:], label='data', alpha=0.75)
-plt.plot(x[lags:], y, 'r.', label='pred', ms=3)
-plt.axvline(-2 * np.pi, c='g', ls='--')
-plt.axvline(2 * np.pi, c='g', ls='--')
-plt.text(-15, 22, 'out-of-sample')
-plt.text(-2, 22, 'in-sample')
-plt.text(10, 22, 'out-of-sample')
-plt.legend();
 
 #fINANCIAL EXAMPLE
 url = 'http://hilpisch.com/aiif_eikon_id_eur_usd.csv'
@@ -207,7 +111,6 @@ data[['r', 'pred']].iloc[50:100].plot(
             alpha=0.75);
 plt.axhline(0, c='grey', ls='--');
 
-from sklearn.metrics import accuracy_score
 accuracy_score(np.sign(data['r']), np.sign(data['pred']))
 
 
@@ -215,6 +118,7 @@ split = int(len(r) * 0.8)
 train = r[:split]
 test = r[split:]
 g = TimeseriesGenerator(train, train, length=lags, batch_size=5)
+
 set_seeds()
 model = create_rnn_model(hu=100)
 model.fit(g, epochs=100, steps_per_epoch=10, verbose=False)
@@ -292,8 +196,6 @@ np.bincount(y)
 accuracy_score(test_y[lags:], y)
 
 #DEEP NUERAL
-
-from keras.layers import Dropout
 
 def create_deep_rnn_model(hl=2, hu=100, layer='SimpleRNN',
                           optimizer='rmsprop', features=1,
